@@ -94,7 +94,7 @@ MIDDLEWARE = [
 ]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3030",
-    "CORS_ALLOWED_ORIGINS",
+    railway_url := os.getenv("RAILWAY_URL"),
     "http://127.0.0.1:3030",
     "http://10.168.111.32:3030",
 ]
@@ -209,8 +209,10 @@ DEFAULT_SGST_RATE = 9.0
 DEFAULT_IGST_RATE = 18.0
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "kalliswetha123@gmail.com"
-EMAIL_HOST_PASSWORD = "udwo dgaj geft ovrb"
+#EMAIL_HOST_USER = "kalliswetha123@gmail.com"
+#EMAIL_HOST_PASSWORD = "udwo dgaj geft ovrb"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 EMAIL_TIMEOUT = 3
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
