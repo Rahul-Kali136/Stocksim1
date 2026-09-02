@@ -96,7 +96,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3030",
     "http://127.0.0.1:3030",
     "http://10.168.111.32:3030",
-    "dashing-beignet-66ad6a.netlify.app"
+    "https://indus-stocksim.vercel.app"
 ]
 
 ROOT_URLCONF = 'stocksim.urls'
