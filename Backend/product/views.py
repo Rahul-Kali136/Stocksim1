@@ -1,11 +1,28 @@
+from django.db.models import Prefetch
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from Organization.models import Organization
 from suppliers.models import Supplier
+from inventorypolicy.models import InventoryPolicy
 from .models import Product
 from .serializers import ProductSerializer
+
+
+def optimized_product_queryset():
+    return (
+        Product.objects.select_related(
+            "organization",
+            "supplier",
+            "supplier__organization",
+        ).prefetch_related(
+            Prefetch(
+                "inventory_policies",
+                queryset=InventoryPolicy.objects.order_by("-id"),
+            )
+        )
+    )
 
 
 class OptionalJWTAuthentication(JWTAuthentication):
@@ -49,13 +66,12 @@ class ProductListCreateView(generics.ListCreateAPIView):
 
         base_filter = Q(organization__admin_id=self.request.user.admin_id) | Q(supplier__organization__admin_id=self.request.user.admin_id)
 
+        qs = optimized_product_queryset().filter(base_filter).distinct().order_by("product_id")
         if supplier_id:
-            return Product.objects.filter(base_filter, supplier_id=supplier_id).distinct().order_by("product_id")
-
+            return qs.filter(supplier_id=supplier_id)
         if org_id:
-            return Product.objects.filter(base_filter, organization_id=org_id).distinct().order_by("product_id")
-
-        return Product.objects.filter(base_filter).distinct().order_by("product_id")
+            return qs.filter(organization_id=org_id)
+        return qs
 
     def perform_create(self, serializer):
         organization = serializer.validated_data.get("organization")
@@ -91,13 +107,13 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Product.objects.all().order_by("product_id")
+        return optimized_product_queryset().order_by("product_id")
 
     def get(self, request, *args, **kwargs):
         pk = self.kwargs.get("pk")
 
         # 1. Lookup by product_id
-        product = Product.objects.filter(product_id=pk).first()
+        product = optimized_product_queryset().filter(product_id=pk).first()
         if product:
             product_admin_id = None
             if product.organization:
@@ -115,7 +131,7 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         # 2. Fallback: Lookup by supplier_id
         if Supplier.objects.filter(supplier_id=pk).exists():
-            products = Product.objects.filter(supplier_id=pk).order_by("product_id")
+            products = optimized_product_queryset().filter(supplier_id=pk).order_by("product_id")
             serializer = self.get_serializer(products, many=True)
             return Response(serializer.data)
 
@@ -132,7 +148,7 @@ class ProductByOrganizationView(generics.ListAPIView):
 
     def get_queryset(self):
         org_id = self.kwargs.get("organization_id")
-        return Product.objects.filter(organization_id=org_id).order_by("product_id")
+        return optimized_product_queryset().filter(organization_id=org_id).order_by("product_id")
 
 
 from rest_framework.views import APIView
@@ -242,3 +258,27 @@ class ProductBulkUploadView(APIView):
             "message": f"Successfully imported {created_count} products",
             "count": created_count
         }, status=201)
+
+class ProductBulkDeleteView(APIView):
+    authentication_classes = [OptionalJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        ids = request.data.get("ids", [])
+        if not isinstance(ids, list):
+            return Response({"error": "Expected a list of ids"}, status=400)
+        
+        if not ids:
+            return Response({"message": "No ids provided", "count": 0}, status=200)
+
+        # Delete products belonging to the authenticated admin
+        from django.db.models import Q
+        deleted_count, _ = Product.objects.filter(
+            Q(product_id__in=ids) &
+            (Q(organization__admin_id=request.user.admin_id) | Q(supplier__organization__admin_id=request.user.admin_id))
+        ).delete()
+
+        return Response({
+            "message": f"Successfully deleted {deleted_count} products",
+            "count": deleted_count
+        }, status=200)

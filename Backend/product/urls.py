@@ -1,5 +1,11 @@
 from django.urls import path
-from .views import *
+from product.views import (
+    ProductListCreateView,
+    ProductDetailView,
+    ProductByOrganizationView,
+    ProductBulkUploadView,
+    ProductBulkDeleteView,
+)
 
 urlpatterns = [
 
@@ -7,6 +13,12 @@ urlpatterns = [
         "bulk-upload/",
         ProductBulkUploadView.as_view(),
         name="product-bulk-upload"
+    ),
+
+    path(
+        "bulk-delete/",
+        ProductBulkDeleteView.as_view(),
+        name="product-bulk-delete"
     ),
 
     path(

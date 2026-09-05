@@ -44,13 +44,30 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         ordering_cost = validated_data.pop("ordering_cost", 0.0)
-        holding_cost = validated_data.pop("holding_cost", 0.0)
+        holding_cost = validated_data.pop("holding_cost", 1.0)
         stockout_cost = validated_data.pop("stockout_cost", 0.0)
         opening_stock = validated_data.pop("opening_stock", 0)
         service_level = validated_data.pop("service_level", 95)
         z_value = validated_data.pop("z_value", 1.645)
 
         product = super().create(validated_data)
+
+        from inventorypolicy.models import InventoryPolicy
+        InventoryPolicy.objects.create(
+            product=product,
+            opening_stock=opening_stock,
+            ordering_cost=ordering_cost,
+            holding_cost=holding_cost,
+            stockout_cost=stockout_cost,
+            service_level=service_level,
+            z_value=z_value,
+            average_demand=0.0,
+            average_lead_time=0.0,
+            safety_stock=0,
+            reorder_point=0,
+            reorder_quantity=100,
+            annual_demand=0,
+        )
 
         return product
 
@@ -64,6 +81,34 @@ class ProductSerializer(serializers.ModelSerializer):
 
         product = super().update(instance, validated_data)
 
+        from inventorypolicy.models import InventoryPolicy
+        policy = product.inventory_policies.order_by("-id").first()
+        if not policy:
+            policy = InventoryPolicy(
+                product=product,
+                average_demand=0.0,
+                average_lead_time=0.0,
+                safety_stock=0,
+                reorder_point=0,
+                reorder_quantity=100,
+                annual_demand=0,
+            )
+            policy.ordering_cost = ordering_cost if ordering_cost is not None else 0.0
+            policy.holding_cost = holding_cost if holding_cost is not None else 1.0
+            policy.stockout_cost = stockout_cost if stockout_cost is not None else 0.0
+            policy.opening_stock = opening_stock if opening_stock is not None else 0
+            policy.service_level = service_level if service_level is not None else 95
+            policy.z_value = z_value if z_value is not None else 1.645
+            policy.save()
+        else:
+            if ordering_cost is not None: policy.ordering_cost = ordering_cost
+            if holding_cost is not None: policy.holding_cost = holding_cost
+            if stockout_cost is not None: policy.stockout_cost = stockout_cost
+            if opening_stock is not None: policy.opening_stock = opening_stock
+            if service_level is not None: policy.service_level = service_level
+            if z_value is not None: policy.z_value = z_value
+            policy.save()
+
         return product
 
     def to_representation(self, instance):
@@ -71,7 +116,8 @@ class ProductSerializer(serializers.ModelSerializer):
         if not org_id and instance.supplier and instance.supplier.organization_id:
             org_id = instance.supplier.organization_id
 
-        policy = instance.inventory_policies.order_by("-id").first()
+        policies = list(instance.inventory_policies.all())
+        policy = policies[0] if policies else None
         policy_data = {
             "service_level": 95,
             "opening_stock": 0,
