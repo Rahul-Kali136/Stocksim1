@@ -279,7 +279,7 @@ class InventoryPolicyByProductAll(APIView):
     """
 
     def get(self, request, product_id):
-        policies = InventoryPolicy.objects.filter(product_id=product_id).order_by("-id")
+        policies = InventoryPolicy.objects.filter(product_id=product_id).select_related("product").order_by("-id")
         serializer = InventoryPolicySerializer(policies, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

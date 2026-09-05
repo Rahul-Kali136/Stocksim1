@@ -10,7 +10,7 @@ class InventorySummaryListCreateView(
     generics.ListCreateAPIView
 ):
 
-    queryset = InventorySummary.objects.all()
+    queryset = InventorySummary.objects.select_related("product", "organization").all()
 
     serializer_class = InventorySummarySerializer
 
@@ -20,6 +20,6 @@ class InventorySummaryDetailView(
     generics.RetrieveUpdateDestroyAPIView
 ):
 
-    queryset = InventorySummary.objects.all()
+    queryset = InventorySummary.objects.select_related("product", "organization").all()
 
     serializer_class = InventorySummarySerializer

@@ -17,6 +17,8 @@ from reportlab.lib.pagesizes import landscape, letter
 from datetime import datetime, date
 
 import io
+import os
+from django.conf import settings
 
 
 
@@ -379,11 +381,14 @@ def generate_pdf(data, filename):
 
     pdf = buffer.getvalue()
 
-
-
     buffer.close()
 
-
+    # Save a copy to the central pdf_storage directory
+    pdf_dir = os.path.join(settings.BASE_DIR, 'media', 'pdfs')
+    os.makedirs(pdf_dir, exist_ok=True)
+    pdf_path = os.path.join(pdf_dir, f"{filename}.pdf")
+    with open(pdf_path, 'wb') as f:
+        f.write(pdf)
 
     response = HttpResponse(
         pdf,

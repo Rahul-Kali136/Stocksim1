@@ -1,3 +1,5 @@
+from django.db.models import Prefetch
+
 from product.models import Product
 from simulation.models import MonteCarloSimulation
 from costanalysis.models import InventoryCostAnalysis
@@ -14,6 +16,11 @@ class ReportsService:
 
         products = Product.objects.filter(
             organization=organization
+        ).prefetch_related(
+            Prefetch(
+                "monte_carlo_simulations",
+                queryset=MonteCarloSimulation.objects.order_by("id"),
+            )
         )
 
 
@@ -23,9 +30,7 @@ class ReportsService:
         for product in products:
 
 
-            simulations = MonteCarloSimulation.objects.filter(
-                product=product
-            )
+            simulations = list(product.monte_carlo_simulations.all())
 
 
             total_demand = 0
@@ -84,9 +89,7 @@ class ReportsService:
             opening_stock = 0
 
 
-            first_simulation = simulations.order_by(
-                "day"
-            ).first()
+            first_simulation = simulations[0] if simulations else None
 
 
 
@@ -138,7 +141,7 @@ class ReportsService:
 
         simulations = MonteCarloSimulation.objects.filter(
             product__organization=organization
-        )
+        ).select_related("product")
 
 
         data=[]
@@ -211,7 +214,7 @@ class ReportsService:
 
         costs = InventoryCostAnalysis.objects.filter(
             product__organization=organization
-        )
+        ).select_related("product")
 
 
         data=[]
@@ -271,7 +274,7 @@ class ReportsService:
 
         policies = InventoryPolicy.objects.filter(
             product__organization=organization
-        )
+        ).select_related("product")
 
 
         data=[]
@@ -356,7 +359,7 @@ class ReportsService:
 
         comparisons = PolicyComparison.objects.filter(
             product__organization=organization
-        )
+        ).select_related("product")
 
 
         data=[]

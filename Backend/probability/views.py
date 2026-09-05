@@ -180,13 +180,11 @@ class ProbabilityDistributionByProduct(APIView):
 
     def get(self, request, product_id):
 
-        try:
+        probability = ProbabilityDistribution.objects.filter(
+            product_id=product_id
+        ).first()
 
-            probability = ProbabilityDistribution.objects.get(
-                product_id=product_id
-            )
-
-        except ProbabilityDistribution.DoesNotExist:
+        if not probability:
 
             return Response(
                 {
