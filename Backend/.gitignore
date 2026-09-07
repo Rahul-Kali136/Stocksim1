@@ -20,9 +20,6 @@ db.sqlite3
 media/
 staticfiles/
 
-# Environment files
-.env
-*.env
 
 # IDE
 .vscode/
